@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 
 from .app_harness import AppHarness
 from .evolution_host import EvolutionHost
+from .skills.manager import SkillManager
 
 app = FastAPI(title="Nexus Browser API", version="0.1.0")
 
@@ -14,6 +15,7 @@ app = FastAPI(title="Nexus Browser API", version="0.1.0")
 harness = AppHarness()
 workspace_path = os.path.abspath(os.path.join(os.getcwd(), "agent_workspace"))
 evolution = EvolutionHost(workspace_path)
+skill_manager = SkillManager(harness)
 
 class AttachRequest(BaseModel):
     host: str = "127.0.0.1"
@@ -31,6 +33,8 @@ class EvolveRequest(BaseModel):
 async def startup():
     await harness.start()
     evolution.reload_helpers()
+    # Add built-in skills to evolution engine
+    evolution.skills.update(skill_manager.get_skill_map())
 
 @app.post("/attach")
 async def attach(req: AttachRequest):
