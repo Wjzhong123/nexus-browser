@@ -5,15 +5,18 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from .app_harness import AppHarness
-from .evolution_host import EvolutionHost
-from .skills.manager import SkillManager
+from nexus_browser.app_harness import AppHarness
+from nexus_browser.evolution_host import EvolutionHost
+from nexus_browser.skills.manager import SkillManager
 
 app = FastAPI(title="Nexus Browser API", version="0.1.0")
 
 # Singletons
 harness = AppHarness()
-workspace_path = os.path.abspath(os.path.join(os.getcwd(), "agent_workspace"))
+# Find the absolute path to the agent_workspace directory relative to this file
+base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+workspace_path = os.path.join(base_dir, "agent_workspace")
+os.makedirs(workspace_path, exist_ok=True)
 evolution = EvolutionHost(workspace_path)
 skill_manager = SkillManager(harness)
 
@@ -50,8 +53,8 @@ async def get_pages():
 @app.post("/execute")
 async def execute_skill(req: ExecuteRequest):
     try:
-        # We pass harness to the skill so it can control the browser
-        result = await evolution.execute_skill(req.skill_name, harness, *req.args, **req.kwargs)
+        # Skills already have access to harness via self.harness
+        result = await evolution.execute_skill(req.skill_name, *req.args, **req.kwargs)
         return {"status": "success", "result": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,10 +1,10 @@
 import logging
-from .site_adapters.google import GoogleSearchSkill
-from .site_adapters.github import GitHubSkill
-from .site_adapters.wikipedia import WikipediaSkill
-from .site_adapters.bilibili import BilibiliSkill
-from .site_adapters.zhihu import ZhihuSkill
-from .site_adapters.youtube import YouTubeSkill
+from nexus_browser.skills.site_adapters.google import GoogleSearchSkill
+from nexus_browser.skills.site_adapters.github import GitHubSkill
+from nexus_browser.skills.site_adapters.wikipedia import WikipediaSkill
+from nexus_browser.skills.site_adapters.bilibili import BilibiliSkill
+from nexus_browser.skills.site_adapters.zhihu import ZhihuSkill
+from nexus_browser.skills.site_adapters.youtube import YouTubeSkill
 
 logger = logging.getLogger("nexus_browser.skills")
 

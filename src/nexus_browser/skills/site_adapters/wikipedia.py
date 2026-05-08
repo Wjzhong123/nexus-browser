@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from .base import BaseSkill
+from nexus_browser.skills.base import BaseSkill
 
 class WikipediaSkill(BaseSkill):
     """
