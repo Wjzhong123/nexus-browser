@@ -42,6 +42,8 @@ class SkillManager:
             "get_wikipedia_summary": self.wikipedia.get_summary,
             "search_bilibili": self.bilibili.search,
             "search_zhihu": self.zhihu.search,
+            "get_zhihu_hot": self.zhihu.get_hot_list,
+            "extract_zhihu_content": self.zhihu.extract_content,
             "search_youtube": self.youtube.search,
             "search_xiaohongshu": self.xiaohongshu.search,
             "open_xiaohongshu": self.xiaohongshu.open_home,

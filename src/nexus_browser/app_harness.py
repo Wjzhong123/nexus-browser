@@ -25,39 +25,48 @@ class AppHarness:
         if not self.playwright:
             self.playwright = await async_playwright().start()
 
-    async def attach(self, host: str = "127.0.0.1", port: int = 9222):
-        """
-        Connect to a running browser or Electron app via CDP.
-        This is the core feature for controlling desktop apps.
-        """
-        await self.start()
-        
-        # We use connect_over_cdp to attach to an existing debug port
-        endpoint_url = f"http://{host}:{port}"
-        
+    async def _apply_stealth(self, page):
+        """Apply stealth patches to the page to avoid bot detection."""
         try:
-            # First, check if the port is open and get the websocket debugger URL
+            from playwright_stealth import stealth_async
+            await stealth_async(page)
+            logger.info("Stealth patches applied to page.")
+        except ImportError:
+            logger.warning("playwright-stealth not installed. Skipping stealth.")
+
+    async def human_move(self, page, selector: str):
+        """Simulate human-like mouse movement to a selector."""
+        try:
+            element = await page.query_selector(selector)
+            if not element: return
+            box = await element.bounding_box()
+            if not box: return
+            x = box['x'] + box['width'] / 2
+            y = box['y'] + box['height'] / 2
+            await page.mouse.move(x, y, steps=10)
+        except Exception as e:
+            logger.error(f"Human move failed: {e}")
+
+    async def attach(self, host: str = "127.0.0.1", port: int = 9222):
+        """Connect to a running browser or Electron app via CDP."""
+        await self.start()
+        endpoint_url = f"http://{host}:{port}"
+        try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(f"{endpoint_url}/json/version")
                 data = resp.json()
                 ws_url = data.get("webSocketDebuggerUrl")
-                
             if not ws_url:
                 raise Exception(f"Could not find webSocketDebuggerUrl at {endpoint_url}")
-
             logger.info(f"Connecting to CDP at {ws_url}...")
             self.browser = await self.playwright.chromium.connect_over_cdp(ws_url)
-            
-            # Electron apps often have multiple contexts or just one
             if self.browser.contexts:
                 self.context = self.browser.contexts[0]
                 self.pages = self.context.pages
                 if self.pages:
                     self.current_page = self.pages[0]
-            
             logger.info(f"Successfully attached to app at port {port}")
             return {"status": "success", "app": data.get("Browser", "Unknown")}
-            
         except Exception as e:
             logger.error(f"Failed to attach: {e}")
             return {"status": "error", "message": str(e)}
