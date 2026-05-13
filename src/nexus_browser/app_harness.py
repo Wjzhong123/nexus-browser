@@ -98,6 +98,49 @@ class AppHarness:
             return None
         return await self.current_page.screenshot()
 
+    async def run_opencli(self, command: str, subcommand: str, args: List[str] = None, kwargs: Dict[str, Any] = None):
+        """Execute an OpenCLI command through this harness."""
+        if args is None: args = []
+        if kwargs is None: kwargs = {}
+        
+        # Resolve OpenCLI path (assuming it's a peer package)
+        # packages/nexus-browser/src/nexus_browser/app_harness.py -> packages/opencli
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        opencli_dir = os.path.join(base_dir, "opencli")
+        
+        full_args = ["bun", "src/main.ts", command, subcommand] + args
+        for k, v in kwargs.items():
+            if v is True: full_args.append(f"--{k}")
+            elif v is not False and v is not None: full_args.extend([f"--{k}", str(v)])
+        
+        full_args += ["--format", "json"]
+        
+        env = os.environ.copy()
+        env["OPENCLI_BROWSER_URL"] = f"http://127.0.0.1:9222"
+        env["OPENCLI_USER_DATA_DIR"] = os.path.join(os.path.expanduser("~"), ".one", "browser_data")
+        
+        try:
+            logger.info(f"Nexus running OpenCLI: {' '.join(full_args)}")
+            process = await asyncio.create_subprocess_exec(
+                *full_args, cwd=opencli_dir,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=env
+            )
+            stdout, stderr = await process.communicate()
+            if process.returncode != 0:
+                return {"status": "error", "message": stderr.decode().strip()}
+            
+            output = stdout.decode().strip()
+            # Try parsing JSON
+            import json
+            try:
+                start = output.find("[") if "[" in output else output.find("{")
+                if start != -1: return {"status": "success", "result": json.loads(output[start:])}
+                return {"status": "success", "result": output}
+            except:
+                return {"status": "success", "result": output}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
     async def close(self):
         if self.browser:
             await self.browser.close()

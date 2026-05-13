@@ -47,4 +47,5 @@ class SkillManager:
             "search_youtube": self.youtube.search,
             "search_xiaohongshu": self.xiaohongshu.search,
             "open_xiaohongshu": self.xiaohongshu.open_home,
+            "run_opencli": self.harness.run_opencli,
         }

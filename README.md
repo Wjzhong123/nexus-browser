@@ -16,6 +16,7 @@ Nexus Browser is designed to be the perfect companion to traditional AI Search (
 ## Key Features
 - **System-Wide Automation**: Control Web Browsers and **Electron Desktop Apps**.
 - **Self-Healing (Dynamic Evolution)**: Agents can write and hot-reload their own Python "Skills".
+- **OpenCLI Native Integration**: Natively supports 800+ deterministic site adapters from the OpenCLI ecosystem.
 - **Session Transparency**: Zero-login required by attaching to your live browser.
 
 ## Quick Start
