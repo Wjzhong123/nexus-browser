@@ -6,6 +6,7 @@ from nexus_browser.skills.site_adapters.bilibili import BilibiliSkill
 from nexus_browser.skills.site_adapters.zhihu import ZhihuSkill
 from nexus_browser.skills.site_adapters.youtube import YouTubeSkill
 from nexus_browser.skills.site_adapters.xiaohongshu import XiaohongshuSkill
+from nexus_browser.skills.site_adapters.reddit import RedditSkill
 
 logger = logging.getLogger("nexus_browser.skills")
 
@@ -22,6 +23,7 @@ class SkillManager:
         self.zhihu = ZhihuSkill(harness)
         self.youtube = YouTubeSkill(harness)
         self.xiaohongshu = XiaohongshuSkill(harness)
+        self.reddit = RedditSkill(harness)
         
     async def close(self):
         """Cleanup all skills."""
@@ -32,6 +34,7 @@ class SkillManager:
         await self.zhihu.close()
         await self.youtube.close()
         await self.xiaohongshu.close()
+        await self.reddit.close()
 
     def get_skill_map(self):
         """Return a mapping of skill names to their methods for the evolution engine."""
@@ -47,5 +50,8 @@ class SkillManager:
             "search_youtube": self.youtube.search,
             "search_xiaohongshu": self.xiaohongshu.search,
             "open_xiaohongshu": self.xiaohongshu.open_home,
+            "search_reddit": self.reddit.search,
+            "get_subreddit": self.reddit.get_subreddit_posts,
+            "extract_reddit_post": self.reddit.extract_post,
             "run_opencli": self.harness.run_opencli,
         }
