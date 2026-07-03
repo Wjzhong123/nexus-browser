@@ -1,6 +1,5 @@
 import httpx
 import asyncio
-import json
 
 async def run_practical_test():
     url = "http://127.0.0.1:8000"

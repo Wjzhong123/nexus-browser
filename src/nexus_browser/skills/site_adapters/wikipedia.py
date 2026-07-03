@@ -1,4 +1,3 @@
-from typing import Dict, Any
 from nexus_browser.skills.base import BaseSkill
 
 class WikipediaSkill(BaseSkill):

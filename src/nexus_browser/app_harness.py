@@ -1,6 +1,6 @@
 import asyncio
 import logging
-import json
+import os
 import httpx
 from typing import Optional, List, Dict, Any
 from playwright.async_api import async_playwright, BrowserContext, Page
@@ -38,9 +38,11 @@ class AppHarness:
         """Simulate human-like mouse movement to a selector."""
         try:
             element = await page.query_selector(selector)
-            if not element: return
+            if not element:
+                return
             box = await element.bounding_box()
-            if not box: return
+            if not box:
+                return
             x = box['x'] + box['width'] / 2
             y = box['y'] + box['height'] / 2
             await page.mouse.move(x, y, steps=10)
@@ -78,11 +80,14 @@ class AppHarness:
         
         info = []
         for i, page in enumerate(self.context.pages):
-            info.append({
-                "index": i,
-                "title": await page.title(),
-                "url": page.url
-            })
+            try:
+                info.append({
+                    "index": i,
+                    "title": await page.title(),
+                    "url": page.url
+                })
+            except Exception:
+                pass
         return info
 
     async def switch_page(self, index: int):
@@ -100,8 +105,10 @@ class AppHarness:
 
     async def run_opencli(self, command: str, subcommand: str, args: List[str] = None, kwargs: Dict[str, Any] = None):
         """Execute an OpenCLI command through this harness."""
-        if args is None: args = []
-        if kwargs is None: kwargs = {}
+        if args is None:
+            args = []
+        if kwargs is None:
+            kwargs = {}
         
         # Resolve OpenCLI path (assuming it's a peer package)
         # packages/nexus-browser/src/nexus_browser/app_harness.py -> packages/opencli
@@ -110,13 +117,15 @@ class AppHarness:
         
         full_args = ["bun", "src/main.ts", command, subcommand] + args
         for k, v in kwargs.items():
-            if v is True: full_args.append(f"--{k}")
-            elif v is not False and v is not None: full_args.extend([f"--{k}", str(v)])
+            if v is True:
+                full_args.append(f"--{k}")
+            elif v is not False and v is not None:
+                full_args.extend([f"--{k}", str(v)])
         
         full_args += ["--format", "json"]
         
         env = os.environ.copy()
-        env["OPENCLI_BROWSER_URL"] = f"http://127.0.0.1:9222"
+        env["OPENCLI_BROWSER_URL"] = "http://127.0.0.1:9222"
         env["OPENCLI_USER_DATA_DIR"] = os.path.join(os.path.expanduser("~"), ".one", "browser_data")
         
         try:
@@ -134,9 +143,10 @@ class AppHarness:
             import json
             try:
                 start = output.find("[") if "[" in output else output.find("{")
-                if start != -1: return {"status": "success", "result": json.loads(output[start:])}
+                if start != -1:
+                    return {"status": "success", "result": json.loads(output[start:])}
                 return {"status": "success", "result": output}
-            except:
+            except Exception:
                 return {"status": "success", "result": output}
         except Exception as e:
             return {"status": "error", "message": str(e)}

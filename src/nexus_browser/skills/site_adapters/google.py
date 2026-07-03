@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict
 from nexus_browser.skills.base import BaseSkill
 
 class GoogleSearchSkill(BaseSkill):

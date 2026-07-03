@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import logging
 from nexus_browser.skills.base import BaseSkill
 

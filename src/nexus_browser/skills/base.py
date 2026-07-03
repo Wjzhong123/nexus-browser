@@ -1,6 +1,6 @@
 import httpx
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from playwright.async_api import Page, ElementHandle
 
 logger = logging.getLogger("nexus_browser.skills")
@@ -31,7 +31,7 @@ class BaseSkill:
         try:
             # We use evaluate to find the parent in the browser context
             return await element.evaluate_handle(
-                f"(el, sel) => el.closest(sel)", selector
+                "(el, sel) => el.closest(sel)", selector
             )
         except Exception:
             return None

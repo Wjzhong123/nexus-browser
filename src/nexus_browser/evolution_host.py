@@ -4,7 +4,7 @@ import os
 import sys
 import logging
 import asyncio
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict
 
 logger = logging.getLogger("nexus_browser.evolution")
 
