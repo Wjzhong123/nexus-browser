@@ -1,11 +1,15 @@
 import asyncio
+import json
 import logging
 import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import httpx
-from typing import Optional, List, Dict, Any
-from playwright.async_api import async_playwright, BrowserContext, Page
+from playwright.async_api import BrowserContext, Page, async_playwright
 
 logger = logging.getLogger("nexus_browser")
+
 
 class AppHarness:
     """
@@ -77,14 +81,14 @@ class AppHarness:
         """Return info about all open tabs/windows in the attached app."""
         if not self.context:
             return []
-        
+
         info = []
         for i, page in enumerate(self.context.pages):
             try:
                 info.append({
                     "index": i,
                     "title": await page.title(),
-                    "url": page.url
+                    "url": page.url,
                 })
             except Exception:
                 pass
@@ -109,38 +113,35 @@ class AppHarness:
             args = []
         if kwargs is None:
             kwargs = {}
-        
-        # Resolve OpenCLI path (assuming it's a peer package)
-        # packages/nexus-browser/src/nexus_browser/app_harness.py -> packages/opencli
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        opencli_dir = os.path.join(base_dir, "opencli")
-        
-        full_args = ["bun", "src/main.ts", command, subcommand] + args
+
+        # Resolve OpenCLI path: project root / opencli
+        project_root = Path(__file__).resolve().parents[3]
+        opencli_dir = project_root / "opencli"
+
+        # Build command-line arguments
+        full_args = ["bun", "src/main.ts", command, subcommand, *args, "--format", "json"]
         for k, v in kwargs.items():
             if v is True:
                 full_args.append(f"--{k}")
             elif v is not False and v is not None:
                 full_args.extend([f"--{k}", str(v)])
-        
-        full_args += ["--format", "json"]
-        
+
         env = os.environ.copy()
         env["OPENCLI_BROWSER_URL"] = "http://127.0.0.1:9222"
-        env["OPENCLI_USER_DATA_DIR"] = os.path.join(os.path.expanduser("~"), ".one", "browser_data")
-        
+        env["OPENCLI_USER_DATA_DIR"] = str(Path.home() / ".one" / "browser_data")
+
         try:
             logger.info(f"Nexus running OpenCLI: {' '.join(full_args)}")
             process = await asyncio.create_subprocess_exec(
-                *full_args, cwd=opencli_dir,
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=env
+                *full_args, cwd=str(opencli_dir),
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
             stdout, stderr = await process.communicate()
             if process.returncode != 0:
                 return {"status": "error", "message": stderr.decode().strip()}
-            
+
             output = stdout.decode().strip()
-            # Try parsing JSON
-            import json
             try:
                 start = output.find("[") if "[" in output else output.find("{")
                 if start != -1:

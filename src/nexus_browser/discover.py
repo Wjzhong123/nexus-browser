@@ -1,21 +1,50 @@
-import httpx
 import asyncio
+from typing import Dict, List, Optional
 
-async def discover_apps(ports=[9222, 9223, 9444]):
-    print(f"🔍 Searching for apps with remote debugging enabled on ports: {ports}...")
+import httpx
+
+__all__ = ["discover_apps", "main"]
+
+
+async def discover_apps(ports: Optional[List[int]] = None) -> List[Dict[str, str]]:
+    """Search for apps with remote debugging enabled on the given ports.
+
+    Returns a list of dicts with keys: ``port``, ``name``, ``protocol``, ``ws_url``.
+    """
+    if ports is None:
+        ports = [9222, 9223, 9444]
+
+    results: List[Dict[str, str]] = []
     for port in ports:
         try:
             async with httpx.AsyncClient() as client:
-                resp = await client.get(f"http://127.0.0.1:{port}/json/version", timeout=1.0)
+                resp = await client.get(
+                    f"http://127.0.0.1:{port}/json/version", timeout=1.0
+                )
                 if resp.status_code == 200:
                     data = resp.json()
-                    print(f"✅ Found App on Port {port}:")
-                    print(f"   - Name: {data.get('Browser')}")
-                    print(f"   - Protocol: {data.get('Protocol-Version')}")
-                    print(f"   - WS URL: {data.get('webSocketDebuggerUrl')}")
+                    results.append({
+                        "port": str(port),
+                        "name": data.get("Browser", "Unknown"),
+                        "protocol": data.get("Protocol-Version", ""),
+                        "ws_url": data.get("webSocketDebuggerUrl", ""),
+                    })
         except Exception:
-            # Port not open or no app found
             pass
+    return results
+
+
+def main():
+    """CLI entry point: print discovered apps in human-readable format."""
+    found = asyncio.run(discover_apps())
+    if not found:
+        print("No apps with remote debugging found.")
+        return
+    print(f"🔍 Found {len(found)} app(s) with remote debugging enabled:")
+    for app in found:
+        print(f"  ✅ Port {app['port']}: {app['name']}")
+        print(f"     WS: {app['ws_url']}")
+
 
 if __name__ == "__main__":
-    asyncio.run(discover_apps())
+    main()

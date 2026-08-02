@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "nexus-browser"
+version = "0.1.0"
+description = "AI-Native Browser & App Control Harness"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.20.0",
+    "playwright>=1.40.0",
+    "httpx>=0.25.0",
+    "python-multipart>=0.0.6",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+stealth = ["playwright-stealth>=1.0.0"]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.21"]
+
+[project.urls]
+Homepage = "https://github.com/Wjzhong123/nexus-browser"
+
+[project.scripts]
+nexus-browser = "nexus_browser.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
