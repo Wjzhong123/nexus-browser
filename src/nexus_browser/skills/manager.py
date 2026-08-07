@@ -13,6 +13,7 @@ _SITE_ADAPTERS = {
     "youtube": ("nexus_browser.skills.site_adapters.youtube", "YouTubeSkill"),
     "xiaohongshu": ("nexus_browser.skills.site_adapters.xiaohongshu", "XiaohongshuSkill"),
     "reddit": ("nexus_browser.skills.site_adapters.reddit", "RedditSkill"),
+    "weixin": ("nexus_browser.skills.site_adapters.weixin", "WeixinSkill"),
 }
 
 
@@ -66,5 +67,25 @@ class SkillManager:
             "search_reddit": self._get("reddit").search,
             "get_subreddit": self._get("reddit").get_subreddit_posts,
             "extract_reddit_post": self._get("reddit").extract_post,
+            "search_weixin": self._get("weixin").search,
             "run_opencli": self.harness.run_opencli,
+            "web_task": self._web_task,
         }
+
+    async def _web_task(
+        self,
+        task: str,
+        site: Optional[str] = None,
+        intent: Optional[str] = None,
+        query: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Unified web task routing: describe a task, get the best-matching result.
+
+        Example:
+            - "看看知乎热搜" → routes to opencli(zhihu → hot)
+            - "搜一下B站AI视频" → routes to opencli(bilibili → search)
+            - "打开 https://example.com" → routes to browser
+        """
+        from nexus_browser.router import route_task
+
+        return await route_task(self.harness, task, site, intent, query)

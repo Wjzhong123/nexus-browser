@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 import os
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -9,6 +11,14 @@ import httpx
 from playwright.async_api import BrowserContext, Page, async_playwright
 
 logger = logging.getLogger("nexus_browser")
+
+
+@dataclass
+class RouteResult:
+    """Simple result type for browser routing operations."""
+    output: str = ""
+    is_error: bool = False
+    metadata: dict = field(default_factory=dict)
 
 
 class AppHarness:
@@ -152,12 +162,144 @@ class AppHarness:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
+    @staticmethod
+    def _find_cached_chromium() -> Optional[str]:
+        """Find a usable Chrome for Testing in Playwright's cache directory.
+
+        Prefers the latest available version. Returns None when no cache is found,
+        letting Playwright download/error normally.
+        This fixes chromium-1228 download stalls when local 1223/1208 already exist.
+        """
+        cache_root = Path.home() / "Library" / "Caches" / "ms-playwright"
+        if not cache_root.exists():
+            return None
+        # Collect all chrome-mac* directories under chromium-* revisions
+        candidates: list[Path] = []
+        for rev_dir in cache_root.glob("chromium-*"):
+            for app in rev_dir.glob(
+                "chrome-mac*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+            ):
+                candidates.append(app)
+        if not candidates:
+            return None
+        # Sort by revision number descending (chromium-1223 > chromium-1208)
+        def sort_key(p: Path) -> int:
+            try:
+                return int(p.parent.parent.parent.parent.name.split("-")[1])
+            except (IndexError, ValueError):
+                return 0
+        candidates.sort(key=sort_key, reverse=True)
+        return str(candidates[0])
+
+    async def launch_standalone(self, user_data_dir: Optional[Path] = None) -> dict:
+        """Launch a standalone persistent Chromium instance.
+
+        Uses the locally cached Chrome for Testing when available, avoiding
+        Playwright's chromium-1228 download stall.
+        """
+        await self.start()
+        data_dir = user_data_dir or (Path.home() / ".nexus" / "browser_data")
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        launch_kwargs: dict[str, Any] = dict(
+            user_data_dir=str(data_dir),
+            headless=False,
+            args=[
+                "--no-sandbox",
+                "--disable-infobars",
+                "--disable-background-networking",
+            ],
+        )
+        # Prefer local cached browser to avoid Playwright re-download
+        cached = self._find_cached_chromium()
+        if cached:
+            logger.info("Using locally cached browser: %s", cached)
+            launch_kwargs["executable_path"] = cached
+
+        try:
+            self.context = await asyncio.wait_for(
+                self.playwright.chromium.launch_persistent_context(**launch_kwargs),
+                timeout=30.0,
+            )
+            if self.context.pages:
+                self.current_page = self.context.pages[0]
+            else:
+                self.current_page = await asyncio.wait_for(
+                    self.context.new_page(),
+                    timeout=10.0,
+                )
+            self.pages = self.context.pages
+            logger.info("Standalone browser instance started (data: %s)", data_dir)
+            return {"status": "success", "message": "Standalone browser launched"}
+        except Exception as e:
+            logger.exception("Standalone browser launch failed")
+            return {"status": "error", "message": str(e)}
+
+    async def navigate_and_get(self, url: str) -> RouteResult:
+        """Navigate to a URL and return page content as text.
+
+        Creates a new page if none is active, and closes it after extraction
+        to avoid orphan tab accumulation.
+        """
+        try:
+            await self.start()
+            if not self.context:
+                self.context = await self.playwright.chromium.launch_persistent_context(
+                    user_data_dir=str(Path.home() / ".nexus" / "browser_data"),
+                    headless=False,
+                )
+                self.pages = self.context.pages
+
+            page = await self.context.new_page()
+            page.set_default_timeout(15000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            await page.wait_for_load_state("networkidle", timeout=5000)
+            title = await page.title()
+            content = await page.inner_text("body")
+            content = content[:8000] if len(content) > 8000 else content  # truncate
+            await page.close()
+            return RouteResult(
+                output=f"## {title}\n\n{content}",
+                is_error=False,
+                metadata={"url": url, "title": title},
+            )
+        except Exception as e:
+            try:
+                await page.close()
+            except Exception:
+                pass
+            return RouteResult(
+                output=f"Failed to navigate to {url}: {e}",
+                is_error=True,
+                metadata={"url": url, "error": str(e)},
+            )
+
+    async def close_page(self, page: Optional[Page] = None):
+        """Close a specific page or the current page.
+
+        Prevents orphan tab accumulation from repeated browser operations.
+        """
+        target = page or self.current_page
+        if target:
+            try:
+                await target.close()
+            except Exception:
+                pass
+
     async def close(self):
+        """Close all browser resources."""
         if self.browser:
-            await self.browser.close()
+            try:
+                await self.browser.close()
+            except Exception:
+                pass
         if self.playwright:
-            await self.playwright.stop()
+            try:
+                await self.playwright.stop()
+            except Exception:
+                pass
         self.browser = None
         self.playwright = None
         self.context = None
         self.current_page = None
+        self.pages = []

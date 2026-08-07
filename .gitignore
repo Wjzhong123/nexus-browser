@@ -16,3 +16,7 @@ Thumbs.db
 
 # Nexus
 agent_workspace/agent_helpers.py
+
+# Virtual env
+.venv/
+.pytest_cache/

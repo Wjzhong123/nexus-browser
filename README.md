@@ -18,6 +18,94 @@ Nexus Browser is designed to be the perfect companion to traditional AI Search (
 - **Self-Healing (Dynamic Evolution)**: Agents can write and hot-reload their own Python "Skills".
 - **OpenCLI Native Integration**: Natively supports 800+ deterministic site adapters from the OpenCLI ecosystem.
 - **Session Transparency**: Zero-login required by attaching to your live browser.
+- **Web Task Routing** 🆕: Just describe what you want in natural language ("看看知乎热搜", "搜B站AI视频"), and the router automatically selects the best data source between OpenCLI and browser.
+- **Cached Chromium Launch** 🆕: Avoids Playwright download stalls by using local cached Chrome for Testing.
 
 ## Quick Start
-... (Refer to main documentation for setup)
+```bash
+# Install
+pip install nexus-browser
+
+# Start the server
+nexus-browser
+```
+
+### Quick Start (Development)
+```bash
+# Clone the repo
+git clone https://github.com/Wjzhong123/nexus-browser.git
+cd nexus-browser
+
+# Install dependencies
+pip install -e ".[dev]"
+playwright install chromium
+
+# Start the server
+python -m nexus_browser.main
+```
+
+## API Endpoints
+
+### 🔄 Unified Web Task Routing (`POST /web_task`)
+The primary entry point. Just describe what you want:
+
+```json
+// Request
+{
+  "task": "看看知乎今天的热搜",
+  "site": null,     // optional: force a site name
+  "intent": null,   // optional: force an intent (hot/search/detail/news)
+  "query": null     // optional: explicit search keywords
+}
+
+// Response (via OpenCLI)
+{
+  "status": "success",
+  "result": {
+    "output": "路由: opencli(zhihu → hot)\n\n知乎热榜数据...",
+    "is_error": false,
+    "method": "opencli(zhihu → hot)"
+  }
+}
+```
+
+**What it handles:**
+- `"看看知乎热搜"` → `opencli(zhihu → hot)` — trending list
+- `"搜一下B站上的AI视频"` → `opencli(bilibili → search)` — search results
+- `"在github上找langchain"` → `opencli(github → search)` — repo search
+- `"打开 https://example.com"` → `browser_control` — page navigation
+- `"搜索公众号文章，主题是AI创业"` → `opencli(weixin → search)` — WeChat articles
+
+### Other Endpoints
+| Method | Endpoint | Description |
+|:-------|:---------|:------------|
+| POST | `/attach` | Attach to a running browser/Electron app via CDP |
+| GET | `/pages` | List all open tabs/windows |
+| GET | `/status` | Server status, registered skills, and routes |
+| POST | `/execute` | Execute a registered skill by name |
+| POST | `/evolve` | Hot-reload agent-written helper code |
+| POST | `/web_task` | Unified natural-language task routing 🆕 |
+
+## Architecture
+
+```
+User Task (e.g., "看看知乎热搜")
+    │
+    ▼
+┌─────────────────────────────────┐
+│      Web Task Router            │
+│  (router.py / POST /web_task)   │
+│                                 │
+│  1. resolve_site(task)          │
+│     → aliases, URLs, site names │
+│  2. resolve_intent(task)        │
+│     → hot / search / detail     │
+│  3. extract_query(task)         │
+│     → auto-extract keywords     │
+└──────────┬──────────────────────┘
+           │
+    ┌──────┴──────┐
+    ▼              ▼
+OpenCLI        Browser
+(151+ sites)   (CDP-attached)
+```

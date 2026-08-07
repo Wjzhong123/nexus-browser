@@ -2,6 +2,64 @@
 
 This document outlines how AI Agents should coordinate between **Traditional AI Search** and **Nexus Browser** to provide the most comprehensive answers.
 
+## 0. The Unified Entry Point: Web Task Router 🆕
+
+**Before using any specific tool, agents should first try the `web_task` endpoint.**
+
+```python
+# Instead of writing:
+result = await harness.run_opencli("zhihu", "hot")
+# or:
+result = await harness.navigate_and_get("https://www.zhihu.com/billboard")
+
+# Just describe the task:
+result = await route_task(harness, "看看知乎今天的热搜")
+```
+
+The router automatically:
+1. Parses the site name (151+ aliases, Chinese/English, URL hosts)
+2. Resolves the intent (hot / search / detail / news)
+3. Extracts search keywords from the task description
+4. Routes to the best data source (OpenCLI → browser → fallback)
+
+### Router Decision Tree
+
+```
+User Task Description
+    │
+    ▼
+┌─────────────────────────────────────┐
+│ 1. Site Resolution                  │
+│    ├─ URL host (https://example.com)│
+│    ├─ Chinese alias (知乎 → zhihu)  │
+│    └─ OpenCLI site name (bilibili)  │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│ 2. Intent Resolution                │
+│    ├─ "热搜"/"排行" → hot           │
+│    ├─ "搜索"/"找" → search          │
+│    ├─ "详情"/"内容" → detail        │
+│    └─ "新闻"/"资讯" → news          │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│ 3. Query Extraction (if search)     │
+│    "搜一下B站上的AI视频" → "AI视频" │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│ 4. Route Decision                   │
+│    ├─ Site in OpenCLI list → opencli│
+│    ├─ Has URL/interactive keywords  │
+│    │  → browser_control             │
+│    └─ No site/URL → suggest search  │
+└─────────────────────────────────────┘
+```
+
 ## 1. The Search Matrix
 
 | Scenario | Traditional AI Search | Nexus Browser |

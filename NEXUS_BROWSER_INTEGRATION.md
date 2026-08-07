@@ -3,7 +3,7 @@
 ## 1. Overview
 Nexus Browser is the next-generation automation engine integrated into the **One Desktop** ecosystem. It provides a bridge between AI Agents and the digital world (both Web and Desktop Apps) by combining visual transparency with autonomous self-healing capabilities.
 
-## 2. The Three Pillars
+## 2. The Four Pillars
 
 ### I. CDP-Powered Attachment (The Bridge)
 Unlike traditional tools that launch isolated, empty browsers, Nexus Browser **attaches** to your live environment.
@@ -18,9 +18,26 @@ Nexus Browser implements a **Hot-Reload Engine**.
 ### III. Deterministic Skill System (The Power)
 We abstract complex UI interactions into **Stable Skills**.
 - **Adapters**: Pre-built, robust adapters for major platforms:
-  - **Domestic**: Bilibili, 知乎 (Zhihu), 微信公众号 (via visual mode).
+  - **Domestic**: Bilibili, 知乎 (Zhihu), 微信公众号 (WeChat Official Accounts).
   - **Global**: Google, GitHub, YouTube, Reddit, Wikipedia.
 - **Pattern**: Uses "Parent-Climbing" logic instead of fragile CSS selectors to ensure stability during site UI updates.
+
+### IV. Unified Web Task Routing 🆕 (The Gateway)
+The router provides a single entry point for all web-related tasks. Instead of choosing between OpenCLI, browser navigation, or web search, the agent just describes the task.
+
+```python
+# One line handles everything:
+result = await route_task(harness, "看看知乎热搜")
+# Router auto-resolves: zhihu → hot → opencli → structured data
+```
+
+**Key capabilities:**
+- **151+ site aliases** (Chinese, English, URL hosts)
+- **4 intent categories** (hot, search, detail, news)
+- **Auto query extraction** (parses "搜B站AI视频" → "AI视频")
+- **Smart fallback** (OpenCLI → browser → suggestion)
+
+## 3. Directory Structure
 
 ## 3. Directory Structure
 ```text
@@ -28,7 +45,11 @@ packages/nexus-browser/
 ├── src/nexus_browser/
 │   ├── app_harness.py      # Low-level CDP & Attachment logic
 │   ├── evolution_host.py   # Dynamic code loading & reloading
+│   ├── router.py           # 🆕 Unified web task routing (site/intent/query parsing)
 │   └── skills/             # Pre-built site adapters (The "Brain")
+│       ├── base.py         # BaseSkill with HTTP client & DOM helpers
+│       ├── manager.py      # Lazy-loaded skill registry + web_task skill
+│       └── site_adapters/  # Google, GitHub, Bilibili, Zhihu, Weixin...
 ├── agent_workspace/        # Sandbox where Agents write evolution code
 └── README.md               # Quick start and API docs
 ```
@@ -38,7 +59,16 @@ packages/nexus-browser/
 ### For Comprehensive Search:
 Agents are instructed to use the **Observer-Refiner Pattern**:
 1. Use traditional AI Search for broad landscape.
-2. Use `nexus_skill` (e.g., `search_bilibili`) to gather deep, real-world experience or private data.
+2. Use `nexus_skill` (e.g., `search_bilibili`, `search_weixin`) to gather deep, real-world experience or private data.
+
+### The Unified Router (Recommended):
+Instead of choosing individual skills, agents can use the `web_task` skill:
+```python
+# Single entry point for all web tasks
+result = await evolution.execute_skill("web_task", task="看看知乎热搜")
+# Or via the API:
+# POST /web_task  {"task": "看看知乎热搜"}
+```
 
 ### For Desktop Automation:
 1. Start the target app with `--remote-debugging-port=9222`.

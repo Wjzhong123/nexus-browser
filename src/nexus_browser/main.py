@@ -1,6 +1,7 @@
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -47,6 +48,12 @@ class ExecuteRequest(BaseModel):
 class EvolveRequest(BaseModel):
     code: str
 
+class WebTaskRequest(BaseModel):
+    task: str
+    site: Optional[str] = None
+    intent: Optional[str] = None
+    query: Optional[str] = None
+
 
 # --- routes ---
 
@@ -69,6 +76,16 @@ async def execute_skill(req: ExecuteRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/web_task")
+async def web_task(req: WebTaskRequest):
+    """Unified web task entry point: describe a task, get the best result."""
+    from nexus_browser.router import route_task
+    try:
+        result = await route_task(harness, req.task, req.site, req.intent, req.query)
+        return {"status": "success", "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/evolve")
 async def evolve(req: EvolveRequest):
     success, message = evolution.write_helper_code(req.code)
@@ -82,6 +99,10 @@ async def status():
         "attached": harness.browser is not None,
         "skills": list(evolution.skills.keys()),
         "workspace": str(workspace_path),
+        "routes": {
+            "web_task": "POST /web_task - Unified task routing",
+            "opencli": len(evolution.skills.get("run_opencli", [])),
+        },
     }
 
 
